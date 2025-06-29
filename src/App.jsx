@@ -14,49 +14,45 @@ const INITIAL_CARDS = [
 
 const CARD_OFFSET = 10;
 const SCALE_FACTOR = 0.06;
+const MAX_ROTATION = 10;
+const SWIPE_THRESHOLD = 100;
+const AUTOPLAY_INTERVAL = 2000;
 
-export default function App() {
+export default function CardSlider() {
   const [cards, setCards] = useState(INITIAL_CARDS);
   const [isHovered, setIsHovered] = useState(false);
   const [fadeCardIndex, setFadeCardIndex] = useState(null);
   const intervalRef = useRef(null);
 
-  // Reset deck if empty
   useEffect(() => {
     if (cards.length === 0) {
-      const timeout = setTimeout(() => {
-        setCards(INITIAL_CARDS);
-      }, 500);
+      const timeout = setTimeout(() => setCards(INITIAL_CARDS), 500);
       return () => clearTimeout(timeout);
     }
   }, [cards]);
 
-  // Autoplay logic
   useEffect(() => {
     if (!isHovered) {
-      intervalRef.current = setInterval(() => {
-        triggerFadeOut(0);
-      }, 2000);
+      intervalRef.current = setInterval(
+        () => triggerFadeOut(0),
+        AUTOPLAY_INTERVAL
+      );
     }
     return () => clearInterval(intervalRef.current);
   }, [isHovered, cards]);
-
-  const moveToEnd = (from) => {
-    const updated = move(cards, from, cards.length - 1).slice(
-      0,
-      cards.length - 1
-    );
-    setCards(updated);
-    setFadeCardIndex(null);
-  };
 
   const triggerFadeOut = (index) => {
     setFadeCardIndex(index);
     setTimeout(() => moveToEnd(index), 300);
   };
 
-  const handleNext = () => {
-    triggerFadeOut(0);
+  const moveToEnd = (index) => {
+    const updated = move(cards, index, cards.length - 1).slice(
+      0,
+      cards.length - 1
+    );
+    setCards(updated);
+    setFadeCardIndex(null);
   };
 
   const handlePrev = () => {
@@ -72,18 +68,14 @@ export default function App() {
     setCards(shuffled);
   };
 
-  const topCardLabel = cards[0]?.label || "";
-
-  // Generate slight rotation per card
   const getCardRotation = (index) => {
-    const maxRotation = 10;
     const direction = index % 2 === 0 ? 1 : -1;
-    return direction * (Math.random() * maxRotation);
+    return direction * (Math.random() * MAX_ROTATION);
   };
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row">
-      {/* Left */}
+      {/* Left Panel */}
       <div className="w-full md:w-1/2 flex flex-col justify-center px-10 py-10 relative">
         <div className="absolute top-10 left-0 flex flex-col gap-3 pl-4">
           <button
@@ -93,7 +85,7 @@ export default function App() {
             <ChevronLeft />
           </button>
           <button
-            onClick={handleNext}
+            onClick={() => triggerFadeOut(0)}
             className="w-10 h-10 flex items-center justify-center rounded-full bg-white shadow hover:bg-gray-200"
           >
             <ChevronRight />
@@ -105,20 +97,20 @@ export default function App() {
             <Shuffle />
           </button>
         </div>
-        {topCardLabel && (
+        {cards[0]?.label && (
           <p className="text-4xl md:text-6xl font-extrabold leading-tight text-black mb-6">
-            → {topCardLabel}
+            → {cards[0].label}
           </p>
         )}
       </div>
 
-      {/* Right */}
+      {/* Right Panel - Cards */}
       <div
         className="w-full md:w-1/2 flex items-center justify-center relative py-10"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
-        <ul className="relative w-[500px] h-[500px]">
+        <ul className="relative w-[300px] h-[300px]">
           <AnimatePresence>
             {cards.map((card, index) => {
               const canDrag = index === 0;
@@ -147,8 +139,8 @@ export default function App() {
                   exit={{ opacity: 0 }}
                   drag={canDrag ? "x" : false}
                   dragConstraints={false}
-                  onDragEnd={(event, info) => {
-                    if (info.offset.x > 100 || info.offset.x < -100) {
+                  onDragEnd={(e, info) => {
+                    if (Math.abs(info.offset.x) > SWIPE_THRESHOLD) {
                       moveToEnd(index);
                     }
                   }}
