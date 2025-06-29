@@ -1,0 +1,163 @@
+import React, { useEffect, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import move from "lodash-move";
+import { ChevronLeft, ChevronRight, Shuffle } from "lucide-react";
+
+const INITIAL_CARDS = [
+  { color: "#266678", label: "Design Sprint" },
+  { color: "#cb7c7a", label: "UX Workshop" },
+  { color: "#36a18b", label: "Prototype Phase" },
+  { color: "#cda35f", label: "User Testing" },
+  { color: "#747474", label: "Launch Prep" },
+  { color: "#0000FF", label: "Launch" },
+];
+
+const CARD_OFFSET = 10;
+const SCALE_FACTOR = 0.06;
+
+export default function App() {
+  const [cards, setCards] = useState(INITIAL_CARDS);
+  const [isHovered, setIsHovered] = useState(false);
+  const [fadeCardIndex, setFadeCardIndex] = useState(null);
+  const intervalRef = useRef(null);
+
+  // Reset deck if empty
+  useEffect(() => {
+    if (cards.length === 0) {
+      const timeout = setTimeout(() => {
+        setCards(INITIAL_CARDS);
+      }, 500);
+      return () => clearTimeout(timeout);
+    }
+  }, [cards]);
+
+  // Autoplay logic
+  useEffect(() => {
+    if (!isHovered) {
+      intervalRef.current = setInterval(() => {
+        triggerFadeOut(0);
+      }, 2000);
+    }
+    return () => clearInterval(intervalRef.current);
+  }, [isHovered, cards]);
+
+  const moveToEnd = (from) => {
+    const updated = move(cards, from, cards.length - 1).slice(
+      0,
+      cards.length - 1
+    );
+    setCards(updated);
+    setFadeCardIndex(null);
+  };
+
+  const triggerFadeOut = (index) => {
+    setFadeCardIndex(index);
+    setTimeout(() => moveToEnd(index), 300);
+  };
+
+  const handleNext = () => {
+    triggerFadeOut(0);
+  };
+
+  const handlePrev = () => {
+    if (cards.length < INITIAL_CARDS.length) {
+      const swipedCards = INITIAL_CARDS.filter((card) => !cards.includes(card));
+      const lastSwipedCard = swipedCards[swipedCards.length - 1];
+      setCards([lastSwipedCard, ...cards]);
+    }
+  };
+
+  const handleShuffle = () => {
+    const shuffled = [...cards].sort(() => Math.random() - 0.5);
+    setCards(shuffled);
+  };
+
+  const topCardLabel = cards[0]?.label || "";
+
+  // Generate slight rotation per card
+  const getCardRotation = (index) => {
+    const maxRotation = 10;
+    const direction = index % 2 === 0 ? 1 : -1;
+    return direction * (Math.random() * maxRotation);
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col md:flex-row">
+      {/* Left */}
+      <div className="w-full md:w-1/2 flex flex-col justify-center px-10 py-10 relative">
+        <div className="absolute top-10 left-0 flex flex-col gap-3 pl-4">
+          <button
+            onClick={handlePrev}
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-white shadow hover:bg-gray-200"
+          >
+            <ChevronLeft />
+          </button>
+          <button
+            onClick={handleNext}
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-white shadow hover:bg-gray-200"
+          >
+            <ChevronRight />
+          </button>
+          <button
+            onClick={handleShuffle}
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-white shadow hover:bg-gray-200"
+          >
+            <Shuffle />
+          </button>
+        </div>
+        {topCardLabel && (
+          <p className="text-4xl md:text-6xl font-extrabold leading-tight text-black mb-6">
+            → {topCardLabel}
+          </p>
+        )}
+      </div>
+
+      {/* Right */}
+      <div
+        className="w-full md:w-1/2 flex items-center justify-center relative py-10"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
+        <ul className="relative w-[500px] h-[500px]">
+          <AnimatePresence>
+            {cards.map((card, index) => {
+              const canDrag = index === 0;
+              const isFading = index === fadeCardIndex;
+
+              return (
+                <motion.li
+                  key={`${card.color}-${index}`}
+                  className="absolute w-full h-full rounded-2xl shadow-xl list-none flex items-end p-6"
+                  style={{
+                    backgroundColor: card.color,
+                    cursor: canDrag ? "grab" : "default",
+                  }}
+                  initial={{ opacity: 1, x: 0 }}
+                  animate={{
+                    left: index * -CARD_OFFSET,
+                    scale: 1 - index * SCALE_FACTOR,
+                    zIndex: cards.length - index,
+                    opacity: isFading ? 0 : 1,
+                    x: isFading ? 100 : 0,
+                    rotate: getCardRotation(index),
+                    transition: isFading
+                      ? { duration: 0.3, ease: "easeInOut" }
+                      : {},
+                  }}
+                  exit={{ opacity: 0 }}
+                  drag={canDrag ? "x" : false}
+                  dragConstraints={false}
+                  onDragEnd={(event, info) => {
+                    if (info.offset.x > 100 || info.offset.x < -100) {
+                      moveToEnd(index);
+                    }
+                  }}
+                />
+              );
+            })}
+          </AnimatePresence>
+        </ul>
+      </div>
+    </div>
+  );
+}
