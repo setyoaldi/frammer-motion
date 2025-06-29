@@ -110,7 +110,7 @@ export default function CardSlider() {
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
-        <ul className="relative w-[300px] h-[300px]">
+        <ul className="relative w-[500px] h-[500px]">
           <AnimatePresence>
             {cards.map((card, index) => {
               const canDrag = index === 0;
